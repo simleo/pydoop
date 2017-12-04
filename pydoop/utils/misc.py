@@ -24,9 +24,25 @@ import logging
 import time
 import uuid
 from struct import pack
+from functools import wraps
+import warnings
 
 
 DEFAULT_LOG_LEVEL = "WARNING"
+
+
+def deprecated(alt):
+    def deprecated_func(func):
+        @wraps(func)
+        def func_with_warn(*args, **kwargs):
+            if callable(alt):
+                m = "%s is deprecated, use %s" % (func.__name__, alt.__name__)
+            else:
+                m = alt
+            warnings.warn(m, DeprecationWarning, stacklevel=2)
+            return func(*args, **kwargs)
+        return func_with_warn
+    return deprecated_func
 
 
 def split_hdfs_path(hdfs_path, user=None):  # backwards compatibility
@@ -170,7 +186,7 @@ class Timer(object):
     def _get_time_counter(self, name):
         if name not in self._counters:
             counter_name = self._gen_counter_name(name)
-            self._counters[name] = self.ctx.getCounter(
+            self._counters[name] = self.ctx.get_counter(
                 self._counter_group, counter_name
             )
         return self._counters[name]
@@ -180,7 +196,7 @@ class Timer(object):
 
     def stop(self, s):
         delta_ms = 1000 * (time.time() - self._start_times[s])
-        self.ctx.incrementCounter(self._get_time_counter(s), int(delta_ms))
+        self.ctx.increment_counter(self._get_time_counter(s), int(delta_ms))
 
     def time_block(self, event_name):
         return self.TimingBlock(self, event_name)

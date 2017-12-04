@@ -30,6 +30,8 @@ MapReduce applications and interact with HDFS in pure Python.
 import os
 import errno
 from importlib import import_module
+import warnings
+
 import pydoop.hadoop_utils as hu
 from pydoop.utils.py3compat import configparser, parser_read
 
@@ -40,6 +42,9 @@ except ImportError:  # should only happen at compile time
     DEFAULT_HADOOP_HOME = __version__ = None
 _PATH_FINDER = hu.PathFinder()
 _HADOOP_INFO = _PATH_FINDER.find()  # fill the cache ASAP
+
+# TODO: make this configurable
+warnings.simplefilter("once")
 
 __author__ = ", ".join((
     "Simone Leo",

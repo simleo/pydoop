@@ -30,6 +30,7 @@ from abc import abstractmethod
 
 from pydoop.utils.py3compat import ABC
 from pydoop.utils.conversion_tables import mrv1_to_mrv2, mrv2_to_mrv1
+from pydoop.utils.misc import deprecated
 
 
 class PydoopError(Exception):
@@ -51,6 +52,9 @@ class Counter(object):
     def get_id(self):
         return self.id
 
+    # --- LEGACY METHODS (OLD API) ---
+
+    @deprecated(get_id)
     def getId(self):
         return self.get_id()
 
@@ -91,26 +95,17 @@ class JobConf(dict):
         super(JobConf, self).__init__(zip(nvalues[::2], nvalues[1::2]))
         self.__mirror_conf_across_versions()
 
-    def hasKey(self, key):
-        return key in self
-
     def get_int(self, key, default=None):
         """
         Same as :meth:`dict.get`, but the value is converted to an int.
         """
         return int(self.get(key, default))
 
-    def getInt(self, key, default=None):
-        return self.get_int(key, default)
-
     def get_float(self, key, default=None):
         """
         Same as :meth:`dict.get`, but the value is converted to an float.
         """
         return float(self.get(key, default))
-
-    def getFloat(self, key, default=None):
-        return self.get_float(key, default)
 
     def get_bool(self, key, default=None):
         """
@@ -133,21 +128,8 @@ class JobConf(dict):
                 v = default
         return v
 
-    def getBoolean(self, key, default=None):
-        return self.get_bool(key, default)
-
     def get_json(self, key, default=None):
         return json.loads(self.get(key, default))
-
-    # get below is deprecated behaviour, here only for backward compatibility
-    def get(self, *args):
-        if len(args) == 2:
-            return super(JobConf, self).get(*args)
-        else:
-            try:
-                return self[args[0]]
-            except KeyError as ex:
-                raise RuntimeError(ex.args[0])
 
     def __mirror_conf_across_versions(self):
         ext = {}
@@ -158,11 +140,39 @@ class JobConf(dict):
                 ext[mrv2_to_mrv1[k]] = self[k]
         self.update(ext)
 
+    # --- LEGACY METHODS (OLD API) ---
+
+    @deprecated('deprecated: replace "conf.hasKey(k)" with "k in conf"')
+    def hasKey(self, key):
+        return key in self
+
+    @deprecated(get_int)
+    def getInt(self, key, default=None):
+        return self.get_int(key, default)
+
+    @deprecated(get_float)
+    def getFloat(self, key, default=None):
+        return self.get_float(key, default)
+
+    @deprecated(get_bool)
+    def getBoolean(self, key, default=None):
+        return self.get_bool(key, default)
+
+    # delete once old API is removed, but calling get is *not* deprecated
+    def get(self, *args):
+        if len(args) == 2:
+            return super(JobConf, self).get(*args)
+        else:
+            try:
+                return self[args[0]]
+            except KeyError as ex:
+                raise RuntimeError(ex.args[0])
+
 
 class Context(ABC):
     """
     Context objects are used for communication between the framework
-    and the Mapreduce application.  These objects are instantiated by the
+    and the MapReduce application. These objects are instantiated by the
     framework and passed to user methods as parameters::
 
       class Mapper(api.Mapper):
@@ -170,7 +180,7 @@ class Context(ABC):
           def map(self, context):
               key, value = context.key, context.value
               ...
-              context.emit(new_key, new_value)
+              context.emit(intermediate_key, intermediate_value)
     """
 
     @property
@@ -184,9 +194,6 @@ class Context(ABC):
     def get_job_conf(self):
         pass
 
-    def getJobConf(self):
-        return self.get_job_conf()
-
     @property
     def key(self):
         """
@@ -198,9 +205,6 @@ class Context(ABC):
     def get_input_key(self):
         pass
 
-    def getInputKey(self):
-        return self.get_input_key()
-
     @property
     def value(self):
         """
@@ -211,9 +215,6 @@ class Context(ABC):
     @abstractmethod
     def get_input_value(self):
         pass
-
-    def getInputValue(self):
-        return self.get_input_value()
 
     @abstractmethod
     def emit(self, key, value):
@@ -236,9 +237,6 @@ class Context(ABC):
         """
         pass
 
-    def setStatus(self, status):
-        return self.set_status(status)
-
     @abstractmethod
     def get_counter(self, group, name):
         """
@@ -253,9 +251,6 @@ class Context(ABC):
         """
         pass
 
-    def getCounter(self, group, name):
-        return self.get_counter(group, name)
-
     @abstractmethod
     def increment_counter(self, counter, amount):
         """
@@ -263,6 +258,29 @@ class Context(ABC):
         """
         pass
 
+    # --- LEGACY METHODS (OLD API) ---
+
+    @deprecated(get_job_conf)
+    def getJobConf(self):
+        return self.get_job_conf()
+
+    @deprecated(get_input_key)
+    def getInputKey(self):
+        return self.get_input_key()
+
+    @deprecated(get_input_value)
+    def getInputValue(self):
+        return self.get_input_value()
+
+    @deprecated(set_status)
+    def setStatus(self, status):
+        return self.set_status(status)
+
+    @deprecated(get_counter)
+    def getCounter(self, group, name):
+        return self.get_counter(group, name)
+
+    @deprecated(increment_counter)
     def incrementCounter(self, counter, amount):
         return self.increment_counter(counter, amount)
 
@@ -282,13 +300,6 @@ class MapContext(Context):
     def get_input_split(self):
         pass
 
-    @abstractmethod
-    def getInputSplit(self):
-        """
-        Get the raw input split as a byte string (backward compatibility).
-        """
-        pass
-
     @property
     def input_key_class(self):
         """
@@ -299,9 +310,6 @@ class MapContext(Context):
     @abstractmethod
     def get_input_key_class(self):
         pass
-
-    def getInputKeyClass(self):
-        return self.get_input_key_class()
 
     @property
     def input_value_class(self):
@@ -314,8 +322,23 @@ class MapContext(Context):
         """
         pass
 
+    # --- LEGACY METHODS (OLD API) ---
+
+    @deprecated(get_input_key_class)
+    def getInputKeyClass(self):
+        return self.get_input_key_class()
+
+    @deprecated(get_input_value_class)
     def getInputValueClass(self):
         return self.get_input_value_class()
+
+    # TODO: add a "raw" flag to get_input_split, then deprecate
+    @abstractmethod
+    def getInputSplit(self):
+        """
+        Get the raw input split as a byte string (backward compatibility).
+        """
+        pass
 
 
 class ReduceContext(Context):
@@ -330,9 +353,6 @@ class ReduceContext(Context):
     def get_input_values(self):
         pass
 
-    def getInputValues(self):
-        return self.get_input_values()
-
     @abstractmethod
     def next_value(self):
         """
@@ -340,8 +360,13 @@ class ReduceContext(Context):
         """
         pass
 
+    # --- LEGACY METHODS (OLD API) ---
+
     def nextValue(self):
         return self.next_value()
+
+    def getInputValues(self):
+        return self.get_input_values()
 
 
 class Closable(ABC):
@@ -471,6 +496,9 @@ class RecordReader(Closable):
         """
         pass
 
+    # --- LEGACY METHODS (OLD API) ---
+
+    @deprecated(get_progress)
     def getProgress(self):
         return self.get_progress()
 
