@@ -1,50 +1,36 @@
 # Top-level settings are for the default "test" stage, and can be overridden
 
-# some scripts in the .travis dir use TRAVIS_PYTHON_VERSION
 language: python
 python:
   - "2.7"
   - "3.6"
 
-# Required for everything except check_flake8
 sudo: required
 services: docker
 
-# Handled within Docker containers
-install: skip
+# skip installation, requirements are handled in the Docker image
+install: true
 
 script:
+  - pip install flake8
+  - flake8 -v .
+  - DEBUG=true ./.travis/check_script_template -v
   - docker build -t crs4/pydoop .
   - docker run --rm --name pydoop -p 8020:8020 -p 8042:8042 -p 8088:8088 -p 9000:9000 -p 10020:10020 -p 19888:19888 -p 50010:50010 -p 50020:50020 -p 50070:50070 -p 50075:50075 -p 50090:50090 -d crs4/pydoop
   - "docker exec pydoop bash -c 'while : ; do jps | grep DataNode && break; done'"
   - DEBUG=true ./.travis/run_tests
+  - DEBUG=true ./.travis/run_examples
   - docker stop pydoop
 
-
+# Run check_docs first because it's much faster
 stages:
-  - check_flake8
-  - test
-  - check_examples
   - check_docs
-
+  - test
 
 jobs:
   include:
-
-    - stage: check_flake8
-      before_install: pip install flake8
-      script:
-        - flake8 -v .
-        - DEBUG=true ./.travis/check_script_template -v
-
-    - stage: check_examples
+    - stage: check_docs
+      python: "3.6"
       script:
         - docker build -t crs4/pydoop .
-        - docker run --rm --name pydoop -p 8020:8020 -p 8042:8042 -p 8088:8088 -p 9000:9000 -p 10020:10020 -p 19888:19888 -p 50010:50010 -p 50020:50020 -p 50070:50070 -p 50075:50075 -p 50090:50090 -d crs4/pydoop
-        - "docker exec pydoop bash -c 'while : ; do jps | grep DataNode && break; done'"
-        - DEBUG=true ./.travis/run_examples
-        - docker stop pydoop
-
-    - stage: check_docs
-      script:
         - docker build -t crs4/pydoop-docs -f Dockerfile.docs .
