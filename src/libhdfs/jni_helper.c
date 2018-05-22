@@ -117,6 +117,7 @@ jthrowable invokeMethod(JNIEnv *env, jvalue *retval, MethType methType,
     const char *str; 
     char returnType;
     
+    fprintf(stderr, "invokeMethod: 10\n"); fflush(stderr);
     jthr = validateMethodType(env, methType);
     if (jthr)
         return jthr;
@@ -132,12 +133,17 @@ jthrowable invokeMethod(JNIEnv *env, jvalue *retval, MethType methType,
     str++;
     returnType = *str;
     va_start(args, methSignature);
+    fprintf(stderr, "invokeMethod: rt = %c\n", returnType); fflush(stderr);
     if (returnType == JOBJECT || returnType == JARRAYOBJECT) {
         jobject jobj = NULL;
         if (methType == STATIC) {
-            jobj = (*env)->CallStaticObjectMethodV(env, cls, mid, args);
+	    fprintf(stderr, "invokeMethod: CallStaticObjectMethodV\n"); fflush(stderr);
+	    jobj = (*env)->CallStaticObjectMethodV(env, cls, mid, args);
+	    fprintf(stderr, "invokeMethod: CallStaticObjectMethodV: DONE\n"); fflush(stderr);
+	    fprintf(stderr, "invokeMethod: CallStaticObjectMethodV: retval %s NULL\n", (jobj == NULL) ? "is" : "is NOT"); fflush(stderr);
         }
         else if (methType == INSTANCE) {
+	    fprintf(stderr, "invokeMethod: CallObjectMethodV\n"); fflush(stderr);
             jobj = (*env)->CallObjectMethodV(env, instObj, mid, args);
         }
         retval->l = jobj;
@@ -190,6 +196,7 @@ jthrowable invokeMethod(JNIEnv *env, jvalue *retval, MethType methType,
         }
         retval->i = ji;
     }
+    fprintf(stderr, "invokeMethod: 30\n"); fflush(stderr);
     va_end(args);
 
     jthr = (*env)->ExceptionOccurred(env);
@@ -197,6 +204,7 @@ jthrowable invokeMethod(JNIEnv *env, jvalue *retval, MethType methType,
         (*env)->ExceptionClear(env);
         return jthr;
     }
+    fprintf(stderr, "invokeMethod: END\n"); fflush(stderr);
     return NULL;
 }
 

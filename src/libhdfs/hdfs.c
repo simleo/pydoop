@@ -490,6 +490,7 @@ hdfsFS hdfsConnect(const char *host, tPort port)
         return NULL;
     hdfsBuilderSetNameNode(bld, host);
     hdfsBuilderSetNameNodePort(bld, port);
+    fprintf(stderr, "calling hdfsBuilderConnect\n"); fflush(stderr);
     return hdfsBuilderConnect(bld);
 }
 
@@ -608,12 +609,21 @@ hdfsFS hdfsBuilderConnect(struct hdfsBuilder *bld)
     jobject jRet = NULL;
     struct hdfsBuilderConfOpt *opt;
 
+#ifdef _POSIX_THREAD_SAFE_FUNCTIONS
+    fprintf(stderr, "_POSIX_THREAD_SAFE_FUNCTIONS is defined\n");
+#endif
+#ifdef _REENTRANT
+    fprintf(stderr, "_REENTRANT is defined\n");
+#endif
+
     //Get the JNIEnv* corresponding to current thread
+    fprintf(stderr, "getting JNI env\n"); fflush(stderr);
     env = getJNIEnv();
     if (env == NULL) {
         ret = EINTERNAL;
         goto done;
     }
+    fprintf(stderr, "done getting JNI env\n"); fflush(stderr);
 
     //  jConfiguration = new Configuration();
     jthr = constructNewObjectOfClass(env, &jConfiguration, HADOOP_CONF, "()V");
@@ -665,16 +675,20 @@ hdfsFS hdfsBuilderConnect(struct hdfsBuilder *bld)
     } else {
         if (!strcmp(bld->nn, "default")) {
             // jURI = FileSystem.getDefaultUri(conf)
+	    fprintf(stderr, "check 10\n"); fflush(stderr);
+
             jthr = invokeMethod(env, &jVal, STATIC, NULL, HADOOP_FS,
                           "getDefaultUri",
                           "(Lorg/apache/hadoop/conf/Configuration;)Ljava/net/URI;",
                           jConfiguration);
+	    fprintf(stderr, "check 11\n"); fflush(stderr);
             if (jthr) {
                 ret = printExceptionAndFree(env, jthr, PRINT_EXC_ALL,
                     "hdfsBuilderConnect(%s)",
                     hdfsBuilderToStr(bld, buf, sizeof(buf)));
                 goto done;
             }
+	    fprintf(stderr, "check 12\n"); fflush(stderr);
             jURI = jVal.l;
         } else {
             // fs = FileSystem#get(URI, conf, ugi);
@@ -699,6 +713,8 @@ hdfsFS hdfsBuilderConnect(struct hdfsBuilder *bld)
             }
             jURI = jVal.l;
         }
+
+	fprintf(stderr, "check 20\n"); fflush(stderr);
 
         if (bld->kerbTicketCachePath) {
             jthr = hadoopConfSetStr(env, jConfiguration,
@@ -744,6 +760,8 @@ hdfsFS hdfsBuilderConnect(struct hdfsBuilder *bld)
             jFS = jVal.l;
         }
     }
+    fprintf(stderr, "check 30\n"); fflush(stderr);
+
     jRet = (*env)->NewGlobalRef(env, jFS);
     if (!jRet) {
         ret = printPendingExceptionAndFree(env, PRINT_EXC_ALL,

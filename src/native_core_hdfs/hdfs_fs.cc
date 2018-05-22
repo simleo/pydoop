@@ -75,12 +75,17 @@ int FsClass_init(FsInfo *self, PyObject *args, PyObject *kwds)
     // Connect cycles and retries more than once if necessary.  Better let
     // other Python threads through.
     Py_BEGIN_ALLOW_THREADS;
+    fprintf(stderr, "connecting to HDFS\n");
+    fflush(stderr);
+
         if (self->user != NULL) {
             self->_fs = hdfsConnectAsUser(self->host, self->port, self->user);
 
         } else {
             self->_fs = hdfsConnect(self->host, self->port);
         }
+    fprintf(stderr, "done connecting to HDFS\n");
+    fflush(stderr);
     Py_END_ALLOW_THREADS;
 
     if (!self->_fs) {
@@ -299,6 +304,9 @@ PyObject* FsClass_open_file(FsInfo* self, PyObject *args, PyObject *kwds)
     tOffset size = 0;
     hdfsFileInfo* info = NULL;
 
+    fprintf(stderr, "entering FsClass_open_file\n");
+    fflush(stderr);
+
     if (!PyArg_ParseTuple(args, "es|sihi",
                           "utf-8", &path, &mode, &buff_size, &replication,
                           &blocksize)) {
@@ -324,8 +332,12 @@ PyObject* FsClass_open_file(FsInfo* self, PyObject *args, PyObject *kwds)
     }
 
     Py_BEGIN_ALLOW_THREADS;
+    fprintf(stderr, "opening %s\n", path);
+    fflush(stderr);
         file = hdfsOpenFile(self->_fs, path, flags,
                             buff_size, replication, blocksize);
+    fprintf(stderr, "opened %s\n", path);
+    fflush(stderr);
     Py_END_ALLOW_THREADS;
     if (file == NULL) {
         PyMem_Free(path);
