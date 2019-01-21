@@ -102,18 +102,21 @@ class Application<K1 extends Writable, V1 extends Writable,
         // add TMPDIR environment variable with the value of java.io.tmpdir
         env.put("TMPDIR", System.getProperty("java.io.tmpdir"));
         env.put(Submitter.PORT, Integer.toString(serverSocket.getLocalPort()));
-    
+
+        // This password is used as a shared secret key between this
+        // application and the child pipes process
+        byte[] password = null;
+
         //Add token to the environment if security is enabled
         Token<JobTokenIdentifier> jobToken = 
             TokenCache.getJobToken(context.getCredentials());
-        // This password is used as shared secret key between this application and
-        // child pipes process
-        byte[]  password = jobToken.getPassword();
-        String localPasswordFile = new File(".") + Path.SEPARATOR
+        if (null != jobToken) {
+          password = jobToken.getPassword();
+          String localPasswordFile = new File(".") + Path.SEPARATOR
             + "jobTokenPassword";
-        writePasswordToLocalFile(localPasswordFile, password, conf);
-        // FIXME why is this not Submitter.SECRET_LOCATION ?
-        env.put("hadoop.pipes.shared.secret.location", localPasswordFile);
+          writePasswordToLocalFile(localPasswordFile, password, conf);
+          env.put("hadoop.pipes.shared.secret.location", localPasswordFile);
+        }
  
         List<String> cmd = new ArrayList<String>();
         String interpretor = conf.get(Submitter.INTERPRETOR);
@@ -140,10 +143,14 @@ class Application<K1 extends Writable, V1 extends Writable,
         process = runClient(cmd, env);
         clientSocket = serverSocket.accept();
     
-        String challenge = getSecurityChallenge();
-        String digestToSend = createDigest(password, challenge);
-        String digestExpected = createDigest(password, digestToSend);
-    
+        String challenge = null;
+        String digestToSend = null;
+        String digestExpected = null;
+        if (null != password) {
+          challenge = getSecurityChallenge();
+          digestToSend = createDigest(password, challenge);
+          digestExpected = createDigest(password, digestToSend);
+        }
         handler = new OutputHandler<K2, V2>(context, input, digestExpected);
         K2 outputKey = (K2)
             ReflectionUtils.newInstance(context.getOutputKeyClass(), conf);
@@ -152,9 +159,11 @@ class Application<K1 extends Writable, V1 extends Writable,
         downlink = new BinaryProtocol<K1, V1, K2, V2>(clientSocket, handler, 
                                                       outputKey, outputValue, conf);
 
-        downlink.authenticate(digestToSend, challenge);
-        waitForAuthentication();
-        LOG.debug("Authentication succeeded");
+        if (null != digestToSend) {
+          downlink.authenticate(digestToSend, challenge);
+          waitForAuthentication();
+          LOG.debug("Authentication succeeded");
+        }
         downlink.start();
         downlink.setJobConf(conf); 
     }
