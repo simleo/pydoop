@@ -709,7 +709,7 @@ error:
 // Optimizing other commands in this way is probably worthless.
 static PyObject *
 FileOutStream_writeOutput(FileOutStreamObj *self, PyObject *args) {
-  int32_t part = -1;
+  Py_ssize_t part = -1;
   PyThreadState *state;
   _ASSERT_STREAM_OPEN;
 #if PY_MAJOR_VERSION < 3
@@ -742,7 +742,7 @@ FileOutStream_writeOutput(FileOutStreamObj *self, PyObject *args) {
   try {
     if (part >= 0) {
       HadoopUtils::serializeInt(PARTITIONED_OUTPUT, *self->stream);
-      HadoopUtils::serializeInt(part, *self->stream);
+      HadoopUtils::serializeInt((int32_t)part, *self->stream);
     } else {
       HadoopUtils::serializeInt(OUTPUT, *self->stream);
     }
