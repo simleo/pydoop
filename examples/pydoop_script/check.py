@@ -62,6 +62,8 @@ def check_caseswitch(mr_out_dir, switch="upper"):
         with open(os.path.join(DEFAULT_INPUT_DIR, name)) as f:
             exp_output.append(getattr(f.read(), switch)())
     exp_output = "".join(exp_output)
+    print("output:\n%s" % output[:1000])
+    print("exp_output:\n%s" % exp_output[:1000])
     return output.splitlines() == exp_output.splitlines()
 
 
